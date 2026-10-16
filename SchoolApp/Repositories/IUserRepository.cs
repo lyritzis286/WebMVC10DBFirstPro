@@ -1,4 +1,5 @@
-﻿using SchoolApp.Models;
+﻿using SchoolApp.Core;
+using SchoolApp.Models;
 using System.Linq.Expressions;
 
 namespace SchoolApp.Repositories;
