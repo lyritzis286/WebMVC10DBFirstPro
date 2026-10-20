@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchoolApp.Data;
@@ -38,7 +39,16 @@ namespace SchoolApp
                 {
                     options.LoginPath = "/User/Login";
                     options.AccessDeniedPath = "/Home/AccessDenied";
+                    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
                 });
+
+            builder.Services.AddAuthorizationBuilder()
+                .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+                    .RequireAuthenticatedUser()
+                    .Build())
+                .AddPolicy("CanInsertTeacher", policy => policy.RequireClaim("Capability", "INSERT_TEACHER"))
+                .AddPolicy("CanViewTeacher", policy => policy.RequireClaim("Capability", "VIEW_TEACHERS"))
+                .AddPolicy("CanDeleteStudent", policy => policy.RequireClaim("Capability", "DELETE_STUDENT"));
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -54,7 +64,7 @@ namespace SchoolApp
 
             app.UseAuthorization();
 
-            app.MapStaticAssets();
+            app.MapStaticAssets().AllowAnonymous();
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}")

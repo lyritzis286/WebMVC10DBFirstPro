@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SchoolApp.Models;
 using System.Diagnostics;
@@ -6,12 +7,26 @@ namespace SchoolApp.Controllers
 {
     public class HomeController : Controller
     {
+        [HttpGet]
+        [AllowAnonymous]
         public IActionResult Index()
+        {
+            if(User.Identity?.IsAuthenticated != true)
+            {
+                return View();
+            }
+            return RedirectToAction("Index", "User");
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult Privacy()
         {
             return View();
         }
 
-        public IActionResult Privacy()
+        [HttpGet]
+        public IActionResult AccessDenied()
         {
             return View();
         }
