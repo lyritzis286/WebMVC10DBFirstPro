@@ -16,6 +16,7 @@ public class UserRepository : BaseRepository<User>, IUserRepository
     {
          return await _context.Users
             .Include(u => u.Role)
+            .ThenInclude(r => r.Capabilities)
             .FirstOrDefaultAsync(u => u.Username == username || u.Email == username);
     }
 

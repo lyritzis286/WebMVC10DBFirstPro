@@ -6,7 +6,7 @@ namespace SchoolApp.Configuration;
 
 public class MapperConfig : Profile
 {
-    protected MapperConfig()
+    public MapperConfig()
     {
         CreateMap<User, UserReadOnlyDTO>()
             .ForMember(dest => dest.UserRole, opt => opt.MapFrom(src => src.Role.Name));

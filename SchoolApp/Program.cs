@@ -1,6 +1,10 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchoolApp.Data;
 using SchoolApp.Repositories;
+using SchoolApp.Security;
+using SchoolApp.Services;
 using Serilog;
 
 namespace SchoolApp
@@ -15,7 +19,11 @@ namespace SchoolApp
                 ?? throw new InvalidOperationException("Connection 'DevConnection' not found.");
 
             builder.Services.AddDbContext<SchoolMvcDbfirstContext>(options => options.UseSqlServer(connString));
+            builder.Services.AddSingleton<IEncryptionUtil, EncryptionUtil>();
             builder.Services.AddRepositories();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<ITeacherService, TeacherService>();
+            builder.Services.AddScoped<IApplicationService, ApplicationService>();
             builder.Services.AddAutoMapper(cfg => cfg.AddProfile<Configuration.MapperConfig>());
             builder.Host.UseSerilog((context, config) =>
             {
@@ -23,8 +31,14 @@ namespace SchoolApp
             });
 
             // Add services to the container.
-            builder.Services.AddControllersWithViews();
+            builder.Services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options =>
+                {
+                    options.LoginPath = "/User/Login";
+                    options.AccessDeniedPath = "/Home/AccessDenied";
+                });
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
