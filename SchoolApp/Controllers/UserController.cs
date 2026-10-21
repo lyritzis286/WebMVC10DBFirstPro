@@ -21,10 +21,11 @@ public class UserController : Controller
     }
 
     [HttpGet]
-    [Authorize]
+    //[Authorize]   -- Δεν χρειάζεται λόγω του fallback auth policy
     public IActionResult Index()
     {
         var roleClaim = User.FindFirstValue(ClaimTypes.Role);
+        _logger.LogInformation("Role claim={Role}", roleClaim);
 
         if (User.IsInRole("ADMIN"))
         {
@@ -34,28 +35,29 @@ public class UserController : Controller
         {
             return RedirectToAction("Index", "Teacher");
         }
+        //else if (User.HasClaim("Capability", "VIEW_STUDENT_DASHBOARD")) -- πάντα με Capability
         else if (User.IsInRole("STUDENT"))
         {
             return RedirectToAction("Index", "Student");
         }
         else
         {
-            return RedirectToAction("AccesDenied", "Home")
+            return RedirectToAction("AccessDenied", "Home");
         }
     }
+
 
     [HttpGet]
     [AllowAnonymous]
     public IActionResult Login(string? returnUrl = null)
     {
-        if(User.Identity?.IsAuthenticated != true)
+        if (User.Identity?.IsAuthenticated != true)
         {
             ViewData["ReturnUrl"] = returnUrl;
             return View();
         }
 
         return RedirectToAction("Index", "User");
-
     }
 
     [HttpPost]
@@ -64,35 +66,37 @@ public class UserController : Controller
     {
         try
         {
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                ViewData["ReturnUrl"] = returnUrl;
+                ViewData["RetutnUrl"] = returnUrl;
                 return View(userLoginDTO);
             }
+
             var user = await _applicationService.UserService.VerifyAndGetUserAsync(userLoginDTO);
 
-            if(user is null)
+            if (user is null)
             {
-                ViewData["ReturnUrl"] = returnUrl;
-                ViewData["ValidateMessage"] = "Bad Credentials. Username or Password is invalid"
-                    return View(userLoginDTO);
+                ViewData["RetutnUrl"] = returnUrl;
+                ViewData["ValidateMessage"] = "Bad Credentials. Username or password is invalid.";
+                return View(userLoginDTO);
             }
 
             var claims = new List<Claim>()
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name = user.Username),
+                new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Role, user.Role.Name)
             };
+
             claims.AddRange(user.Role.Capabilities.Select(c => new Claim("Capability", c.Name)));
 
-            ClaimsIdentity identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
             AuthenticationProperties properties = new()
             {
-                AllowRefresh = true;
-                IsPersistent = userLoginDTO.KeepLoggedIn;
-            }
+                AllowRefresh = true,
+                IsPersistent = userLoginDTO.KeepLoggedIn
+            };
 
             var principal = new ClaimsPrincipal(identity);
 
@@ -120,16 +124,16 @@ public class UserController : Controller
             ViewData["ReturnUrl"] = returnUrl;
             return View(userLoginDTO);
         }
-
-        [HttpPost]      // logout should be post for being secured through CSRF Token
-                        //[Authorize]  -- default λόγω του fallback policy
-        public async Task<IActionResult> Logout()
-        {
-            var username = User.Identity?.Name;
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            _logger.LogInformation("User {Username} logged out.", username);
-            return RedirectToAction("Login", "User");
-        }
-
-
     }
+
+    [HttpPost]      // logout should be post for being secured through CSRF Token
+    //[Authorize]  -- default λόγω του fallback policy
+    public async Task<IActionResult> Logout()
+    {
+        var username = User.Identity?.Name;
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        _logger.LogInformation("User {Username} logged out.", username);
+        return RedirectToAction("Login", "User");
+    }
+
+}
